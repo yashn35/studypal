@@ -1,0 +1,9 @@
+aiohttp==3.9.5
+beautifulsoup4==4.12.2
+PyPDF2==3.0.1
+tiktoken==0.7.0
+pipecat==0.3.0
+pipecat-ai==0.0.39
+python-dotenv==1.0.1
+loguru==0.7.2
+requests==2.32.3
