@@ -26,12 +26,28 @@ from loguru import logger
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+from openai import OpenAI
+client = OpenAI()
+
 # Run this script directly from your command line. 
 # This project was adapted from https://github.com/pipecat-ai/pipecat/blob/main/examples/foundational/07d-interruptible-cartesia.py
 
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
 
+
+# Count number of tokens used in model and truncate the content 
+def truncate_content(content, model_name):
+    encoding = tiktoken.encoding_for_model(model_name)
+    tokens = encoding.encode(content)
+
+    max_tokens = 10000
+    if len(tokens) > max_tokens:
+        truncated_tokens = tokens[:max_tokens]
+        return encoding.decode(truncated_tokens)
+    return content
+
+# Main function to extract content from url 
 def get_article_content(url):
     if 'arxiv.org' in url:
         return get_arxiv_content(url)
@@ -68,20 +84,11 @@ def get_arxiv_content(url):
     else:
         return "Failed to download arXiv PDF."
 
-# Count number of tokens used in model and truncate the content 
-def truncate_content(content, max_tokens=7000):
-    encoding = tiktoken.encoding_for_model("gpt-4")
-    tokens = encoding.encode(content)
-    if len(tokens) > max_tokens:
-        truncated_tokens = tokens[:max_tokens]
-        return encoding.decode(truncated_tokens)
-    return content
-
 # This is the main function that handles STT -> LLM -> TTS 
 async def main():
     url = input("Enter the URL of the article you would like to talk about: ")
     article_content = get_article_content(url)
-    article_content = truncate_content(article_content)
+    article_content = truncate_content(article_content, model_name="gpt-4o-mini")
 
     async with aiohttp.ClientSession() as session:
         (room_url, token) = await configure(session)
@@ -101,13 +108,13 @@ async def main():
 
         tts = CartesiaTTSService(
             api_key=os.getenv("CARTESIA_API_KEY"),
-            voice_id="a0e99841-438c-4a64-b679-ae501e7d6091",  # Barbershop Man
-            sample_rate=44100,
+            voice_id="4d2fd738-3b3d-4368-957a-bb4805275bd9",  # British Narration Lady: 4d2fd738-3b3d-4368-957a-bb4805275bd9
+            sample_rate=44100, 
         )
 
         llm = OpenAILLMService(
             api_key=os.getenv("OPENAI_API_KEY"),
-            model="gpt-4")
+            model="gpt-4o-mini")
 
         messages = [
             {
@@ -116,7 +123,7 @@ async def main():
 
 {article_content}
 
-Your task is to help the user concisely understand and learn from this article. THESE RESPONSES SHOULD BE ONLY 1-3 SENTENCES AND CONCISE. THIS INSTRUCTION IS VERY IMPORTANT. RESPONSES SHOULDN'T BE LONG.
+Your task is to help the user understand and learn from this article in 2 sentences. THESE RESPONSES SHOULD BE ONLY MAX 2 SENTENCES. THIS INSTRUCTION IS VERY IMPORTANT. RESPONSES SHOULDN'T BE LONG.
 """,
             },
         ]
